@@ -2,167 +2,153 @@
 
 class Provider {
   constructor() {
-    this.base = "https://eng.animeapps.top";
-    this.epBase = "https://epeng.animeapps.top";
-    this.playBase = "https://playeng.animeapps.top";
-    this.referer = "https://z2.idlixku.com/";
+    this.base = "https://tv12.idlixku.com";
+    this.playerBase = "https://jeniusplay.com";
+    this.headers = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
+      "Accept-Language": "en-US,en;q=0.9,id;q=0.8",
+      "Referer": this.base + "/",
+    };
   }
 
   getSettings() {
     return {
-      episodeServers: ["SUB"],
+      episodeServers: ["JeniusPlay"],
       supportsDub: false,
     };
   }
 
   async search(query) {
-    const searchUrl = `${this.base}/api/search3.php?keyword=${encodeURIComponent(query.query)}&page=1&limit=10`;
-    const res = await fetch(searchUrl);
-    const data = await res.json();
+    // Idlix uses standard WordPress search querying
+    const searchUrl = `${this.base}/?s=${encodeURIComponent(query.query)}`;
+    const res = await fetch(searchUrl, { headers: this.headers });
+    const html = await res.text();
 
-    if (data.status !== "success" || !data.data || !data.data.length) {
-      throw new Error("No anime found");
+    const results = [];
+    // Basic Regex to parse the WordPress search results grid
+    const regex = /<article.*?href=["'](.*?)["'].*?img src=["'](.*?)["'].*?alt=["'](.*?)["']/gi;
+    let match;
+
+    while ((match = regex.exec(html)) !== null) {
+      results.push({
+        id: match[1], // We use the direct URL as the ID
+        title: match[3],
+        url: match[1],
+        subOrDub: "sub",
+        cover: match[2],
+      });
     }
 
-    const results = data.data.map((item) => ({
-      id: item.anilist,
-      title: item.postname,
-      url: `${this.base}/api/search3.php?keyword=${encodeURIComponent(query.query)}`,
-      subOrDub: "sub",
-      cover: item.ani_cover_large,
-    }));
-
+    if (!results.length) throw new Error("No movies/anime found");
     return results;
   }
 
   async findEpisodes(id) {
-    const apiUrl = `${this.epBase}/api2.php?epid=${id}`;
-    const res = await fetch(apiUrl);
-    const data = await res.json();
+    // id is the full URL of the movie page
+    const res = await fetch(id, { headers: this.headers });
+    const html = await res.text();
 
-    if (!Array.isArray(data) || !data.length) throw new Error("No episodes found");
+    // Extract the WordPress Post ID needed for the player
+    const postIdMatch = html.match(/id=["']dooplay-ajax-counter["']\s+data-postid=["'](\d+)["']/i);
+    if (!postIdMatch) throw new Error("Could not extract Post ID for player");
 
-    const subServer = data.find((s) => s.server_name === "S-sub");
-    if (!subServer || !subServer.server_data || !subServer.server_data.length) {
-      throw new Error("No SUB episodes found");
-    }
+    const postId = postIdMatch[1];
 
-    const episodes = subServer.server_data.map((ep) => ({
-      id: ep.link,
-      title: `Episode ${ep.name}`,
-      number: parseInt(ep.name) || 0,
-      url: ep.link,
-    }));
-
-    return episodes;
+    // For movies, we just return one episode containing the Post ID
+    return [{
+      id: postId,
+      title: "Full Movie",
+      number: 1,
+      url: id,
+    }];
   }
 
   async findEpisodeServer(episode, server) {
-    if (server === "DUB") throw new Error("DUB not available for this provider");
+    const postId = episode.id;
 
-    const apiUrl = `${this.epBase}/apilink.php?data=${episode.id}`;
-    const res = await fetch(apiUrl);
-    const data = await res.json();
+    // 1. Fetch Embed Hash from WordPress AJAX
+    const ajaxFormData = new URLSearchParams();
+    ajaxFormData.append("action", "doo_player_ajax");
+    ajaxFormData.append("post", postId);
+    ajaxFormData.append("nume", "1");
+    ajaxFormData.append("type", "movie");
 
-    if (!Array.isArray(data) || !data.length) throw new Error("No stream sources found");
-
-    const srServer = data.find((s) => s.server === "SR");
-    if (!srServer) throw new Error("SR server not available");
-
-    const embedUrl = srServer.link;
-    const referer = this.referer;
-
-    const embedRes = await fetch(embedUrl, {
-      headers: {
-        Referer: referer,
-      },
+    const ajaxRes = await fetch(`${this.base}/wp-admin/admin-ajax.php`, {
+      method: "POST",
+      headers: { ...this.headers, "Content-Type": "application/x-www-form-urlencoded" },
+      body: ajaxFormData.toString()
     });
-    const embedHtml = await embedRes.text();
-
-    // Flexible regex: matches videoUrl or url with any m3u8 path
-    const srcMatch = embedHtml.match(/(?:videoUrl|url)\s*:\s*['"]([^'"]*\.m3u8[^'"]*)['"]/i);
-
-    if (!srcMatch) throw new Error("Could not extract HLS stream from embed");
-
-    let m3u8Path = srcMatch[1];
-
-    // Build full URL depending on path format
-    let fullUrl;
-    if (m3u8Path.startsWith("http")) {
-      fullUrl = m3u8Path;
-    } else if (m3u8Path.startsWith("/")) {
-      fullUrl = `${this.playBase}${m3u8Path}`;
-    } else {
-      // legacy cache/... format
-      fullUrl = `${this.playBase}/r2/${m3u8Path}`;
+    
+    const ajaxData = await ajaxRes.json();
+    let embedHash = ajaxData.embed_url; 
+    
+    // NOTE: If ajaxData.embed_url is AES encrypted (as shown in the Python script), 
+    // it must be decrypted here before proceeding.
+    
+    // Clean up embed URL to get just the hash/ID
+    if (embedHash && embedHash.includes("/video/")) {
+      embedHash = embedHash.split("/video/")[1].split("?")[0];
+    } else if (embedHash && embedHash.includes("=")) {
+      embedHash = embedHash.split("=")[1];
     }
 
-    // Extract subtitle tracks from the player config, e.g.:
-    // tracks: [{ "label": "English", "file": "...sub.vtt", "kind": "captions", "default": true }]
-    const subtitles = this.extractSubtitles(embedHtml);
+    // 2. Fetch M3U8 and Subtitles from JeniusPlay
+    const playerFormData = new URLSearchParams();
+    playerFormData.append("hash", embedHash);
+    playerFormData.append("r", this.base);
+
+    const playerRes = await fetch(`${this.playerBase}/player/index.php?data=${embedHash}&do=getVideo`, {
+      method: "POST",
+      headers: {
+        "Host": "jeniusplay.com",
+        "X-Requested-With": "XMLHttpRequest",
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        "Referer": this.base + "/",
+      },
+      body: playerFormData.toString()
+    });
+
+    const playerText = await playerRes.text();
+    let videoUrl = "";
+    
+    try {
+      const playerData = JSON.parse(playerText);
+      if (playerData.videoSource) {
+        // Force .m3u8 extension as per python script logic
+        videoUrl = playerData.videoSource.replace(/\.[^/.]+$/, "") + ".m3u8"; 
+      }
+    } catch(e) {
+      throw new Error("Failed to parse JeniusPlay response");
+    }
+
+    if (!videoUrl) throw new Error("Stream URL not found");
+
+    // 3. Extract Subtitles using Regex
+    const subtitles = [];
+    const subMatch = playerText.match(/var\s+playerjsSubtitle\s*=\s*["'](.*?)["']/i);
+    if (subMatch && subMatch[1]) {
+        // Ensure standard URL format
+        let subUrl = subMatch[1];
+        if (subUrl.includes("https://")) {
+            subUrl = "https://" + subUrl.split("https://")[1];
+        }
+        
+        subtitles.push({
+            id: "1",
+            url: subUrl,
+            language: "id", // Assuming Indonesian based on the site
+            isDefault: true,
+        });
+    }
 
     return {
-      server: server,
+      server: "JeniusPlay",
       videoSources: [{
-        url: fullUrl,
+        url: videoUrl,
         quality: "auto",
         type: "hls",
-        headers: { Referer: referer },
         subtitles: subtitles,
       }],
-      headers: { Referer: referer },
     };
-  }
-
-  extractSubtitles(html) {
-    // Grab the tracks: [ ... ] array (non-greedy up to the matching closing bracket)
-    const tracksMatch = html.match(/tracks\s*:\s*(\[[\s\S]*?\])\s*,?\s*(?:title|\n\s*\})/i);
-    if (!tracksMatch) return [];
-
-    let tracksRaw = tracksMatch[1];
-
-    let tracks;
-    try {
-      // Tracks are usually valid-ish JSON but may use unquoted keys in some embeds;
-      // try strict JSON first, then fall back to a quoting fix.
-      tracks = JSON.parse(tracksRaw);
-    } catch (e) {
-      try {
-        const fixed = tracksRaw.replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":');
-        tracks = JSON.parse(fixed);
-      } catch (e2) {
-        return [];
-      }
-    }
-
-    if (!Array.isArray(tracks)) return [];
-
-    return tracks
-      .filter((t) => t && t.file && (t.kind === "captions" || t.kind === "subtitles" || !t.kind))
-      .map((t, i) => ({
-        id: String(i + 1),
-        url: t.file,
-        language: this.labelToLangCode(t.label),
-        isDefault: !!t.default,
-      }));
-  }
-
-  labelToLangCode(label) {
-    if (!label) return "en";
-    const map = {
-      english: "en",
-      indonesian: "id",
-      malay: "ms",
-      spanish: "es",
-      portuguese: "pt",
-      french: "fr",
-      german: "de",
-      arabic: "ar",
-      thai: "th",
-      vietnamese: "vi",
-      japanese: "ja",
-    };
-    const key = label.trim().toLowerCase();
-    return map[key] || key.slice(0, 2);
   }
 }
