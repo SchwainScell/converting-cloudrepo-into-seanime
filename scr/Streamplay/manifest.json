@@ -1,13 +1,13 @@
 {
-  "id": "anibd",
-  "name": "AniBD",
-  "description": "AniBD is an online streaming provider for subbed BD anime in english",
-  "manifestURI": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/anime/anibd/manifest.json",
+  "id": "StreamPlay",
+  "name": "StreamPlay",
+  "description": "StreamPlay is goated cloudstream repo to watch film",
+  "manifestURI": "https://github.com/SchwainScell/converting-cloudrepo-into-seanime/edit/main/scr/Streamplay/manifest.json",
   "version": "1.0.1",
-  "author": "Pal",
+  "author": "SchwainScell",
   "type": "onlinestream-provider",
   "language": "javascript",
   "lang": "en",
   "icon": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/public/anibd.jpg",
-  "payloadURI": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/anime/anibd/provider.js"
+  "payloadURI": "https://github.com/SchwainScell/converting-cloudrepo-into-seanime/edit/main/scr/Streamplay/provider.js"
 }
