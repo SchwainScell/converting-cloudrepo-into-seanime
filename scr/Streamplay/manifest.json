@@ -9,5 +9,5 @@
   "language": "javascript",
   "lang": "en",
   "icon": "https://raw.githubusercontent.com/SchwainScell/converting-cloudrepo-into-seanime/refs/heads/main/scr/Img/idlix.jpeg",
-  "payloadURI": "https://raw.githubusercontent.com/SchwainScell/converting-cloudrepo-into-seanime/refs/heads/main/scr/Streamplay/provider.json"
+  "payloadURI": "https://raw.githubusercontent.com/SchwainScell/converting-cloudrepo-into-seanime/refs/heads/main/scr/Streamplay/provider.js"
 }
