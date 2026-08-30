@@ -2,12 +2,12 @@
   "id": "StreamPlay",
   "name": "StreamPlay",
   "description": "StreamPlay is goated cloudstream repo to watch film",
-  "manifestURI": "https://raw.githubusercontent.com/SchwainScell/converting-cloudrepo-into-seanime/edit/main/scr/Streamplay/manifest.json",
+  "manifestURI": "https://raw.githubusercontent.com/SchwainScell/converting-cloudrepo-into-seanime/refs/heads/main/scr/Streamplay/manifest.json",
   "version": "1.0.1",
   "author": "SchwainScell",
   "type": "onlinestream-provider",
   "language": "javascript",
   "lang": "en",
   "icon": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/public/anibd.jpg",
-  "payloadURI": "https://raw.githubusercontent.com/SchwainScell/converting-cloudrepo-into-seanime/edit/main/scr/Streamplay/provider.js"
+  "payloadURI": "https://raw.githubusercontent.com/SchwainScell/converting-cloudrepo-into-seanime/refs/heads/main/scr/Streamplay/provider.json"
 }
