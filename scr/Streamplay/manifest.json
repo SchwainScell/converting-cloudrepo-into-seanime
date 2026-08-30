@@ -3,7 +3,7 @@
   "name": "Idlix",
   "description": "idlix is goated cloudstream repo to watch film",
   "manifestURI": "https://raw.githubusercontent.com/SchwainScell/converting-cloudrepo-into-seanime/refs/heads/main/scr/Streamplay/manifest.json",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "author": "SchwainScell",
   "type": "onlinestream-provider",
   "language": "javascript",
