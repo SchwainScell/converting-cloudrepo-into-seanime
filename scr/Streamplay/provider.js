@@ -5,7 +5,7 @@ class Provider {
     this.base = "https://eng.animeapps.top";
     this.epBase = "https://epeng.animeapps.top";
     this.playBase = "https://playeng.animeapps.top";
-    this.referer = "https://anibd.thankpet.com/";
+    this.referer = "https://z2.idlixku.com/";
   }
 
   getSettings() {
